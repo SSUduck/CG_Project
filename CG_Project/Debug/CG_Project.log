@@ -1,3 +1,2 @@
 ﻿  CG_Project.cpp
-C:\Users\joyew\source\repos\CG_Project\CG_Project\CG_Project.cpp(17,34): warning C4326: return type of 'main' should be 'int' instead of 'void'
-  CG_Project.vcxproj -> C:\Users\joyew\source\repos\CG_Project\Debug\CG_Project.exe
+  CG_Project.vcxproj -> C:\Users\joyew\Project\CG_Project\Debug\CG_Project.exe
