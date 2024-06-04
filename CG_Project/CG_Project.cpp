@@ -1,12 +1,74 @@
+#pragma warning(disable:4996)
 #include <windows.h>
 #include <iostream>
-//#include <stdio.h>
-//#include <glaux.h>
-//#include <gl.h>
-//#include <glu.h>
+#include <glaux.h>
 #include <glut.h>
 
 #define GL_PI 3.1415f
+
+class Texture {
+public:
+	GLuint loadBMP_custom(const char* imagepath);
+};
+
+GLuint Texture::loadBMP_custom(const char* imagepath) {
+	unsigned char header[54];
+	unsigned int dataPos;
+	unsigned int width, height;
+	unsigned int imageSize;
+
+	unsigned char* data;
+
+
+	FILE* file = fopen(imagepath, "rb");
+	if (!file) {
+		printf("Image could not be opened\n");
+		return 0;
+	}
+
+	if (fread(header, 1, 54, file) != 54) {
+		printf("Not a correct BMP file\n");
+		return false;
+	}
+
+	if (header[0] != 'B' || header[1] != 'M') {
+		printf("Not a correct BMP file\n");
+		return 0;
+	}
+
+	dataPos = *(int*)&(header[0x0A]);
+	imageSize = *(int*)&(header[0x22]);
+	width = *(int*)&(header[0x12]);
+	height = *(int*)&(header[0x16]);
+
+
+	if (imageSize == 0)    imageSize = width * height * 3;
+	if (dataPos == 0)      dataPos = 54;
+
+
+	data = new unsigned char[imageSize];
+
+
+	fread(data, 1, imageSize, file);
+
+
+	fclose(file);
+
+
+	GLuint textureID;
+	glGenTextures(1, &textureID);
+
+
+	glBindTexture(GL_TEXTURE_2D, textureID);
+
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_BGR_EXT, GL_UNSIGNED_BYTE, data);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	return textureID;
+
+}
 
 void myDisplay();
 void myReshape(int, int);
@@ -16,12 +78,15 @@ void myKeyboard(unsigned char key, int x, int y);
 void myMouseMotion(GLint X, GLint Y);
 void createCylinder(GLfloat, GLfloat, GLfloat, GLfloat, GLfloat);
 
+Texture tex;
+GLuint BMP = 0;
+
 int viewport;
 GLfloat gYAngle, gXAngle, gZAngle;
 GLint moveX, moveY;
-//GLuint texture[2];
 GLUquadricObj* body;
 GLUquadricObj* head;
+GLUquadricObj* snout;
 
 int main(int argc, char** argv) {
 	glutInit(&argc, argv);
@@ -88,17 +153,10 @@ void init() {
 }
 
 void drawModel() {
-	// 물체의 색상 표현
-	GLfloat d1[] = { 0.0, 0.5, 0.83, 1.0 };
-	GLfloat d2[] = { 1.0, 1.0, 1.0, 1.0 };
-	GLfloat d3[] = { 0.7, 0.0, 0.0, 1.0 };
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glViewport(0 + viewport, 0 + viewport, 600 - 2 * viewport, 600 - 2 * viewport);
 	glColor3f(1.0, 1.0, 1.0);
-	////glBindTexture(GL_TEXTURE_2D, texture[0]);
-	////glBindTexture(GL_TEXTURE_2D, texture[1]);
-	//glMatrixMode(GL_PROJECTION);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
@@ -113,40 +171,45 @@ void drawModel() {
 	gluQuadricDrawStyle(obj, GLU_FILL);
 	gluQuadricNormals(obj, GL_SMOOTH);
 
-	//glutSolidSphere(0.3, 50, 30);
-
 	// 머리
 	head = gluNewQuadric();
 	gluQuadricDrawStyle(head, GLU_FILL);
-	//glBindTexture(GL_TEXTURE_2D, texture[0]);
+	BMP = tex.loadBMP_custom("./head.bmp");
+	gluQuadricTexture(head, GLU_TRUE);
 	glRotatef(270.0, 1.0, 0.0, 0.0);
 	gluSphere(head, 0.2, 50, 30);
 	glRotatef(90.0, 1.0, 0.0, 0.0);
 
 	// 주둥이
-	glPushMatrix();
+	snout = gluNewQuadric();
+	gluQuadricDrawStyle(snout, GLU_FILL);
+	BMP = tex.loadBMP_custom("./snout.bmp");
+	gluQuadricTexture(snout, GLU_TRUE);
 	glTranslatef(0.0, 0.0, 0.15);
-	glRotatef(180, 0.0, 1.0, 0.0);
-	glutSolidSphere(0.095, 20, 20);
-	glPopMatrix();
+	glRotatef(270.0, 1.0, 0.0, 0.0);
+	gluSphere(snout, 0.095, 20, 20);
+	glRotatef(90.0, 1.0, 0.0, 0.0);
 
 	// 코
 	glPushMatrix();
-	glTranslatef(0.0, 0.025, 0.23);
+	glColor3f(0.0, 0.0, 0.0);
+	glTranslatef(0.0, 0.025, 0.1);
 	glRotatef(180, 0.0, 1.0, 0.0);
 	glutSolidSphere(0.03, 20, 20);
 	glPopMatrix();
 
 	// 왼쪽 귀
 	glPushMatrix();
-	glTranslatef(-0.16, 0.16, 0.0);
+	glColor3f(0.0, 0.0, 0.0);
+	glTranslatef(-0.17, 0.16, -0.2);
 	glRotatef(180, 0.0, 1.0, 0.0);
 	glutSolidSphere(0.06, 20, 20);
 	glPopMatrix();
 
 	// 오른쪽 귀
 	glPushMatrix();
-	glTranslatef(0.16, 0.16, 0.0);
+	glColor3f(0.0, 0.0, 0.0);
+	glTranslatef(0.17, 0.16, -0.2);
 	glRotatef(180, 0.0, 1.0, 0.0);
 	glutSolidSphere(0.06, 20, 20);
 	glPopMatrix();
@@ -154,15 +217,17 @@ void drawModel() {
 	// 몸
 	body = gluNewQuadric();
 	gluQuadricDrawStyle(body, GLU_FILL);
-	//glBindTexture(GL_TEXTURE_2D, texture[1]);
+	glColor3f(1.0, 1.0, 1.0);
+	BMP = tex.loadBMP_custom("./body.bmp");
+	gluQuadricTexture(body, GLU_TRUE);
 	glTranslatef(0.0, -0.33, 0.0);
 	glRotatef(270.0, 1.0, 0.0, 0.0);
-	gluSphere(head, 0.249, 30, 20);
+	gluSphere(body, 0.249, 30, 20);
 	glRotatef(90.0, 1.0, 0.0, 0.0);
 
 	// 왼쪽 다리  
-	glMaterialfv(GL_FRONT, GL_DIFFUSE, d2);
 	glPushMatrix();
+	glColor3f(0.0, 0.0, 0.0);
 	glTranslatef(-0.1, -0.1, 0.1);
 	glRotatef(75, 0.0, 0.0, 0.1);
 	glRotatef(355.0, 0.0, 1.0, 0.0);
@@ -171,12 +236,15 @@ void drawModel() {
 
 	// 왼발
 	glPushMatrix();
+	glColor3f(0.0, 0.0, 0.0);
 	glTranslatef(-0.1, -0.1, 0.3);
 	glRotatef(180, 0.1, 0.0, 0.0);
 	glutSolidSphere(0.08, 20, 20);
 	glPopMatrix();
 
 	// 왼 발가락
+	glColor3f(0.25, 0.25, 0.25);
+
 	glPushMatrix();
 	glTranslatef(-0.06, -0.03, 0.3);
 	glRotatef(180, 0.1, 0.0, 0.0);
@@ -197,6 +265,7 @@ void drawModel() {
 
 	// 오른쪽 다리
 	glPushMatrix();
+	glColor3f(0.0, 0.0, 0.0);
 	glTranslatef(0.1, -0.1, 0.1);
 	glRotatef(75, 0.0, 0.0, 0.1);
 	glRotatef(3, 0.0, 0.1, 0.0);
@@ -205,12 +274,15 @@ void drawModel() {
 
 	// 오른 발
 	glPushMatrix();
+	glColor3f(0.0, 0.0, 0.0);
 	glTranslatef(0.1, -0.1, 0.3);
 	glRotatef(180, 0.1, 0.0, 0.0);
 	glutSolidSphere(0.08, 20, 20);
 	glPopMatrix();
 
 	// 오른 발가락
+	glColor3f(0.25, 0.25, 0.25);
+
 	glPushMatrix();
 	glTranslatef(0.06, -0.03, 0.3);
 	glRotatef(180, 0.1, 0.0, 0.0);
@@ -231,35 +303,41 @@ void drawModel() {
 
 	// 오른쪽 팔
 	glPushMatrix();
+	glColor3f(0.0, 0.0, 0.0);
 	glTranslatef(0.11, 0.13, 0.0);
 	glRotatef(90, 0.1, 0.3, 0.0);
 	gluCylinder(obj, 0.08, 0.04, 0.2, 50, 1);
 
 	// 오른손
+	glColor3f(0.0, 0.0, 0.0);
 	glTranslatef(0.0, -0.007, 0.2);
 	glutSolidSphere(0.07, 20, 20);
 	glPopMatrix();
 
 	// 왼쪽 팔  
 	glPushMatrix();
+	glColor3f(0.0, 0.0, 0.0);
 	glTranslatef(-0.11, 0.13, 0.0);
 	glRotatef(90, 0.1, -0.3, 0.0);
 	gluCylinder(obj, 0.08, 0.04, 0.2, 50, 1);
 
 	// 왼손
+	glColor3f(0.0, 0.0, 0.0);
 	glTranslatef(0.0, -0.007, 0.2);
 	glutSolidSphere(0.07, 20, 20);
 	glPopMatrix();
 
 	// 꼬리
 	glPushMatrix();
+	glColor3f(0.0, 0.0, 0.0);
 	glRotatef(180, 0.0, 1.0, 0.0);
-	glTranslatef(0.0, -0.05, 0.2);
+	glTranslatef(0.0, -0.13, 0.2);
 	glutSolidSphere(0.07, 20, 20);
 	glPopMatrix();
 
 	// 대나무
 	glPushMatrix();
+	glColor3f(0.0, 0.7, 0.0);
 	glRotatef(150, 0.0, 0.8, 0.5);
 	createCylinder(-0.3, 0.0, 0.0, 0.02, 0.6);
 
@@ -303,20 +381,11 @@ void myMouseMotion(GLint x, GLint y) {
 }
 
 void createCylinder(GLfloat centerx, GLfloat centery, GLfloat centerz, GLfloat radius, GLfloat h) {
-	/*
-	function createCyliner()
-	원기둥의 중심 x,y,z좌표, 반지름, 높이를 받아 원기둥을 생성하는 함수(+z방향으로 원에서 늘어남)
-	centerx : 원기둥 원의 중심 x좌표
-	centery : 원기둥 원의 중심 y좌표
-	centerz : 원기둥 원의 중심 z좌표
-	radius : 원기둥의 반지름
-	h : 원기둥의 높이
-	*/
 	GLfloat x, y, angle;
 
 	glBegin(GL_TRIANGLE_FAN);           //원기둥의 윗면
 	glNormal3f(0.0f, 0.0f, -1.0f);
-	//glColor3ub(139, 69, 19);
+	//glColor3ub(0, 0, 0);
 	glVertex3f(centerx, centery, centerz);
 
 	for (angle = 0.0f; angle < (2.0f * GL_PI); angle += (GL_PI / 8.0f))
